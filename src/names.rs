@@ -1,3 +1,5 @@
+use byteorder::{BigEndian, ReadBytesExt, ByteOrder, WriteBytesExt};
+use std::io;
 use std::str::FromStr;
 
 #[cfg(test)]
@@ -154,25 +156,25 @@ mod tests {
 /// There is a maximum name length of 255 which applies to bus names, interfaces, and members.
 pub const MAX_NAME_LENGHT: usize = 255;
 
-/// The various names in D-Bus messages have some restrictions.
-/// There is a maximum name length of 255 which applies to bus names, interfaces, and members.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DbusString(String);
+// /// The various names in D-Bus messages have some restrictions.
+// /// There is a maximum name length of 255 which applies to bus names, interfaces, and members.
+// #[derive(Clone, Debug, PartialEq, Eq)]
+// pub struct DbusString(String);
 
-pub enum DbusStringError {
-    /// There is a maximum name length of 255 which applies to bus names, interfaces, and members.
-    ExceedsMaxSize,
-}
+// pub enum DbusStringError {
+//     /// There is a maximum name length of 255 which applies to bus names, interfaces, and members.
+//     ExceedsMaxSize,
+// }
 
-impl FromStr for DbusString {
-    type Err = DbusStringError;
-    fn from_str(s: &str) -> Result<DbusString, DbusStringError> {
-        if s.len() > MAX_NAME_LENGHT {
-            return Err(DbusStringError::ExceedsMaxSize);
-        }
-        Ok(DbusString(s.to_string()))
-    }
-}
+// impl FromStr for DbusString {
+//     type Err = DbusStringError;
+//     fn from_str(s: &str) -> Result<DbusString, DbusStringError> {
+//         if s.len() > MAX_NAME_LENGHT {
+//             return Err(DbusStringError::ExceedsMaxSize);
+//         }
+//         Ok(DbusString(s.to_string()))
+//     }
+// }
 
 /// Connections have one or more bus names associated with them.
 /// A connection has exactly one bus name that is a unique connection name.
