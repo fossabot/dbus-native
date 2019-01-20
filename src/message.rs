@@ -1,8 +1,8 @@
 //! https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling
-use byteorder::{BigEndian, ReadBytesExt, ByteOrder, WriteBytesExt};
+use byteorder::{LittleEndian, BigEndian, ReadBytesExt, ByteOrder, WriteBytesExt};
 
 use crate::names::{BusName, InterfaceName, ErrorName, MemberName};
-use crate::dbus_writer::DbusWriter;
+use crate::dbus_writer::{DbusWriter, DbusWrite};
 use std::io;
 
 /// The maximum length of a message, including header, header alignment padding,
@@ -22,9 +22,16 @@ struct Message {
     body: Body,
 }
 
-impl Message<T> {
-    pub fn write<T1: io::Write>(&self, writer: &mut T1) -> Result<(), std::io::Error> {
-        writer.write_u32::<T>(self.message_id)?;
+impl io::Write for Message {
+    fn write<T1: io::Write>(&self, writer: &mut T1) -> Result<(), std::io::Error> {
+
+        let writer = match self.header.endianess_flag {
+            EndianessFlag::LittleEndian => DbusWriter::<LittleEndian>::new(writer),
+            EndianessFlag::BigEndian => DbusWriter::<BigEndian>::new(writer),
+        };
+
+        self.header.write(writer)?;
+        self.body.write(writer)?;
 
         Ok(())
     }
@@ -80,15 +87,15 @@ struct MajorProtocolVersion(u8);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Serial(u32);
 
-// TODO
 /// Exactly the same as STRING except the content must be a valid object path (see above).
-type ObjectPath = ();
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ObjectPath(pub String);
 
-// TODO
 /// The same as STRING except the length is a single byte
 /// (thus signatures have a maximum length of 255) and the
 /// content must be a valid signature (see above).
-type Signature = ();
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Signature(pub String);
 
 /// The array at the end of the header contains header fields,
 /// where each field is a 1-byte field code followed by a field value.
@@ -214,19 +221,22 @@ struct Header {
     header_fields: Vec<(HeaderFieldCode, HeaderField)>,
 }
 
-impl<T1: ByteOrder, T2: io::Write> DbusWriter<T1, T2> for Header {
-    fn write(&self, writer: &mut T2) -> Result<(), std::io::Error> {
+impl DbusWrite for Header {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1, T2>) -> Result<(), io::Error>
+        where T1: ByteOrder,
+              T2 : io::Write
+    {
 
-         self.write_byte(self.endianess_flag as u8)?;
-         self.write_byte(self.message_type as u8)?;
-         self.write_byte(self.flags.bits())?;
-         self.write_byte(self.major_protocol_version.0)?;
+         writer.write_u8(self.endianess_flag as u8)?;
+         writer.write_u8(self.message_type as u8)?;
+         writer.write_u8(self.flags.bits())?;
+         writer.write_u8(self.major_protocol_version.0)?;
 
-         self.write_u32::<T1>(self.length_message_body)?;
-         self.write_u32::<T1>(self.serial.0)?;
+         writer.write_u32::<T1>(self.length_message_body)?;
+         writer.write_u32::<T1>(self.serial.0)?;
 
          for (code, field) in self.header_fields {
-              self.write_byte(code as u8)?;
+              self.writer_u8(code as u8)?;
               field.write(writer);
          }
          Ok(())
