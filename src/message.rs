@@ -22,17 +22,21 @@ struct Message {
     body: Body,
 }
 
-impl io::Write for Message {
-    fn write<T1: io::Write>(&self, writer: &mut T1) -> Result<(), std::io::Error> {
-
-        let writer = match self.header.endianess_flag {
-            EndianessFlag::LittleEndian => DbusWriter::<LittleEndian>::new(writer),
-            EndianessFlag::BigEndian => DbusWriter::<BigEndian>::new(writer),
+impl Message {
+    fn write<T>(&self, writer:T) -> Result<(), io::Error>
+    where T: io::Write
+    {
+        let mut writer = DbusWriter::new(writer);
+        match self.header.endianess_flag {
+            EndianessFlag::LittleEndian => {
+                self.header.write::<T, LittleEndian>(&mut writer)?;
+                self.body.write::<T, LittleEndian>(&mut writer)?;
+            },
+            EndianessFlag::BigEndian => {
+                self.header.write::<T, BigEndian>(&mut writer)?;
+                self.body.write::<T, BigEndian>(&mut writer)?;
+            },
         };
-
-        self.header.write(writer)?;
-        self.body.write(writer)?;
-
         Ok(())
     }
 }
@@ -40,6 +44,7 @@ impl io::Write for Message {
 /// Endianness flag; ASCII 'l' for little-endian or ASCII 'B' for big-endian.
 /// Both header and body are in this endianness.
 #[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EndianessFlag {
     LittleEndian,
     BigEndian,
@@ -47,6 +52,7 @@ enum EndianessFlag {
 
 /// Message type. Unknown types must be ignored.
 #[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum MessageType {
     /// This is an invalid type.
     Invalid = 0,
@@ -102,6 +108,7 @@ pub struct Signature(pub String);
 /// A header must contain the required header fields for its message type,
 /// and zero or more of any optional header fields.
 #[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum HeaderFieldCode {
     /// Not a valid field name (error if it appears in a message)
     Invalid = 0,
@@ -140,6 +147,7 @@ enum HeaderFieldCode {
 /// where each field is a 1-byte field code followed by a field value.
 /// A header must contain the required header fields for its message type,
 /// and zero or more of any optional header fields.
+///
 #[repr(u8)]
 enum HeaderField {
     /// Not a valid field name (error if it appears in a message)
@@ -175,20 +183,22 @@ enum HeaderField {
     UnixFds(u32),
 }
 
-impl HeaderField {
-    pub fn write<T1: ByteOrder, T2: io::Write>(&self, writer: &mut T2) -> Result<(), std::io::Error> {
-
+impl DbusWrite for HeaderField {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder
+    {
         match self {
-            Invalid => return Err(io::Error::new(io::ErrorKind::InvalidInput, "HeaderField::Invalid can not be marshaled!")),
-            Path(object_path) => ,
-            Interface(interface_name),
-            Member(member_name),
-            ErrorName(error_name),
-            ReplySerial(serial),
-            Destination(destination),
-            Sender(sender),
-            Signature(signature),
-            UnixFds(fd) => writer.write_u32::<T1>(fd),
+            HeaderField::Invalid => return Err(io::Error::new(io::ErrorKind::InvalidInput, "HeaderField::Invalid can not be marshaled!")),
+            HeaderField::Path(object_path) => unimplemented!(),
+            HeaderField::Interface(interface_name) => unimplemented!(),
+            HeaderField::Member(member_name) => unimplemented!(),
+            HeaderField::ErrorName(error_name) => unimplemented!(),
+            HeaderField::ReplySerial(serial) => unimplemented!(),
+            HeaderField::Destination(destination) => unimplemented!(),
+            HeaderField::Sender(sender) => unimplemented!(),
+            HeaderField::Signature(signature) => unimplemented!(),
+            HeaderField::UnixFds(fd) => writer.write_u32::<T2>(*fd),
         };
         Ok(())
     }
@@ -222,22 +232,21 @@ struct Header {
 }
 
 impl DbusWrite for Header {
-    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1, T2>) -> Result<(), io::Error>
-        where T1: ByteOrder,
-              T2 : io::Write
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder
     {
-
          writer.write_u8(self.endianess_flag as u8)?;
          writer.write_u8(self.message_type as u8)?;
          writer.write_u8(self.flags.bits())?;
          writer.write_u8(self.major_protocol_version.0)?;
 
-         writer.write_u32::<T1>(self.length_message_body)?;
-         writer.write_u32::<T1>(self.serial.0)?;
+         writer.write_u32::<T2>(self.length_message_body)?;
+         writer.write_u32::<T2>(self.serial.0)?;
 
-         for (code, field) in self.header_fields {
-              self.writer_u8(code as u8)?;
-              field.write(writer);
+         for (ref code, ref field) in self.header_fields.iter().by_ref() {
+              writer.write_u8(code.clone() as u8)?;
+              field.write::<T1, T2>(writer);
          }
          Ok(())
     }
@@ -246,4 +255,12 @@ impl DbusWrite for Header {
 
 struct Body {
 
+}
+
+impl DbusWrite for Body {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder {
+                  unimplemented!();
+    }
 }
