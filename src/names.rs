@@ -1,5 +1,5 @@
-use byteorder::{BigEndian, ReadBytesExt, ByteOrder, WriteBytesExt};
-use crate::dbus_writer::{DbusWriter, DbusWrite};
+use crate::writer::{DbusWrite, DbusWriter};
+use byteorder::{BigEndian, ByteOrder, ReadBytesExt, WriteBytesExt};
 use std::io;
 use std::str::FromStr;
 
@@ -162,7 +162,6 @@ lazy_static! {
     static ref ORG_FREEDESKTOP_DBUS: BusName = BusName("org.freedesktop.DBus".to_string());
 }
 
-
 /// Connections have one or more bus names associated with them.
 /// A connection has exactly one bus name that is a unique connection name.
 /// The unique connection name remains with the connection for its entire lifetime.
@@ -172,8 +171,9 @@ pub struct InterfaceName(String);
 
 impl DbusWrite for InterfaceName {
     fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
-        where T1: io::Write,
-              T2: ByteOrder
+    where
+        T1: io::Write,
+        T2: ByteOrder,
     {
         writer.write_string::<T2>(&self.0)
     }
@@ -260,8 +260,9 @@ pub struct BusName(String);
 
 impl DbusWrite for BusName {
     fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
-        where T1: io::Write,
-              T2: ByteOrder
+    where
+        T1: io::Write,
+        T2: ByteOrder,
     {
         writer.write_string::<T2>(&self.0)
     }
@@ -339,8 +340,9 @@ pub struct MemberName(String);
 
 impl DbusWrite for MemberName {
     fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
-        where T1: io::Write,
-              T2: ByteOrder
+    where
+        T1: io::Write,
+        T2: ByteOrder,
     {
         writer.write_string::<T2>(&self.0)
     }
@@ -406,8 +408,9 @@ pub struct ErrorName(String);
 
 impl DbusWrite for ErrorName {
     fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
-        where T1: io::Write,
-              T2: ByteOrder
+    where
+        T1: io::Write,
+        T2: ByteOrder,
     {
         writer.write_string::<T2>(&self.0)
     }

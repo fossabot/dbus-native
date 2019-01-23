@@ -2,9 +2,31 @@
 use byteorder::{LittleEndian, BigEndian, ReadBytesExt, ByteOrder, WriteBytesExt};
 
 use crate::names::{BusName, InterfaceName, ErrorName, MemberName};
-use crate::dbus_writer::{DbusWriter, DbusWrite};
+use crate::writer::{DbusWriter, DbusWrite};
+use crate::reader::{DbusReader, DbusRead};
 use crate::type_system::{ObjectPath, Signature, UnixFd, Serial};
 use std::io;
+
+#[cfg(test)]
+mod tests {
+    fn reverse<T: Clone>(xs: &[T]) -> Vec<T> {
+        let mut rev = vec!();
+        for x in xs.iter() {
+            rev.insert(0, x.clone())
+        }
+        rev
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use crate::message::tests::reverse;
+        quickcheck! {
+            fn prop(xs: Vec<u32>) -> bool {
+                xs == reverse(&reverse(&xs))
+            }
+        }
+    }
+}
 
 /// The maximum length of a message, including header, header alignment padding,
 /// and body is 2 to the 27th power or 134217728 (128 MiB).
@@ -49,6 +71,34 @@ impl Message {
 enum EndianessFlag {
     LittleEndian,
     BigEndian,
+}
+
+impl DbusWrite for EndianessFlag {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder
+    {
+        match self {
+            EndianessFlag::LittleEndian => writer.write_u8(b'l'),
+            EndianessFlag::BigEndian => writer.write_u8(b'B'),
+        }
+    }
+}
+
+impl DbusRead<EndianessFlag> for EndianessFlag {
+    fn read<T1, T2>(&self, reader: &mut DbusReader<T1>) -> Result<EndianessFlag, io::Error>
+        where T1: io::Read,
+              T2: ByteOrder
+    {
+        match reader.read_u8()? {
+            b'l' => Ok(EndianessFlag::LittleEndian),
+            b'B' => Ok(EndianessFlag::BigEndian),
+            x => {
+              let str_err = format!("Invalid endianess `{}`", x);
+              Err(io::Error::new(io::ErrorKind::InvalidData, str_err))
+            },
+        }
+    }
 }
 
 /// Message type. Unknown types must be ignored.

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash};
 use std::io;
 
-use crate::dbus_writer::{DbusWriter, DbusWrite};
+use crate::writer::{DbusWriter, DbusWrite};
 
 #[cfg(test)]
 mod tests {
