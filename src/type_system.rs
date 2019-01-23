@@ -5,6 +5,43 @@ use std::io;
 
 use crate::dbus_writer::{DbusWriter, DbusWrite};
 
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn type_code_basic_types() {
+        assert_eq!("h", UnixFd(1).to_type_code());
+        assert_eq!("y", 1u8.to_type_code());
+        assert_eq!("b", true.to_type_code());
+        assert_eq!("n", (-10i16).to_type_code());
+        assert_eq!("q", 10u16.to_type_code());
+        assert_eq!("i", (-20i32).to_type_code());
+        assert_eq!("u", 20u32.to_type_code());
+        assert_eq!("x", (-30i64).to_type_code());
+        assert_eq!("t", (30u64).to_type_code());
+        assert_eq!("d", (36.6f64).to_type_code());
+        assert_eq!("s", "abc".to_type_code());
+        assert_eq!("o", ObjectPath("obj".to_string()).to_type_code());
+        assert_eq!("g", Signature("obj".to_string()).to_type_code());
+    }
+
+    #[test]
+    fn type_code_vec() {
+        let vec = vec!["Value1", "Value2"];
+        assert_eq!("ass", vec.to_type_code());
+    }
+
+    #[test]
+    fn type_code_hashmap() {
+        let mut hmap = HashMap::new();
+        hmap.insert(1u8, "Value_1".to_string());
+        hmap.insert(2u8, "Value_2".to_string());
+        assert_eq!("{ys}", hmap.to_type_code());
+    }
+}
+
 pub type TypeCode = String;
 
 /// Marker type for DictEntry enforcing that only basic types can act as key.
