@@ -1,4 +1,5 @@
 use byteorder::{BigEndian, ReadBytesExt, ByteOrder, WriteBytesExt};
+use crate::dbus_writer::{DbusWriter, DbusWrite};
 use std::io;
 use std::str::FromStr;
 
@@ -156,25 +157,11 @@ mod tests {
 /// There is a maximum name length of 255 which applies to bus names, interfaces, and members.
 pub const MAX_NAME_LENGHT: usize = 255;
 
-// /// The various names in D-Bus messages have some restrictions.
-// /// There is a maximum name length of 255 which applies to bus names, interfaces, and members.
-// #[derive(Clone, Debug, PartialEq, Eq)]
-// pub struct DbusString(String);
+lazy_static! {
+    /// The special message bus name org.freedesktop.DBus responds to a number of additional messages at the object path /org/freedesktop/DBus.
+    static ref ORG_FREEDESKTOP_DBUS: BusName = BusName("org.freedesktop.DBus".to_string());
+}
 
-// pub enum DbusStringError {
-//     /// There is a maximum name length of 255 which applies to bus names, interfaces, and members.
-//     ExceedsMaxSize,
-// }
-
-// impl FromStr for DbusString {
-//     type Err = DbusStringError;
-//     fn from_str(s: &str) -> Result<DbusString, DbusStringError> {
-//         if s.len() > MAX_NAME_LENGHT {
-//             return Err(DbusStringError::ExceedsMaxSize);
-//         }
-//         Ok(DbusString(s.to_string()))
-//     }
-// }
 
 /// Connections have one or more bus names associated with them.
 /// A connection has exactly one bus name that is a unique connection name.
@@ -182,6 +169,15 @@ pub const MAX_NAME_LENGHT: usize = 255;
 /// A bus name is of type STRING, meaning that it must be valid UTF-8.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InterfaceName(String);
+
+impl DbusWrite for InterfaceName {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder
+    {
+        writer.write_string::<T2>(&self.0)
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum InterfaceNameError {
@@ -262,6 +258,15 @@ impl FromStr for InterfaceName {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BusName(String);
 
+impl DbusWrite for BusName {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder
+    {
+        writer.write_string::<T2>(&self.0)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BusNameError {
     /// There is a maximum name length of 255
@@ -332,6 +337,15 @@ impl FromStr for BusName {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MemberName(String);
 
+impl DbusWrite for MemberName {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder
+    {
+        writer.write_string::<T2>(&self.0)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum MemberNameError {
     /// There is a maximum name length of 255
@@ -389,6 +403,15 @@ impl FromStr for MemberName {
 /// Error names have the same restrictions as interface names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ErrorName(String);
+
+impl DbusWrite for ErrorName {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder
+    {
+        writer.write_string::<T2>(&self.0)
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ErrorNameError {

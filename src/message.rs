@@ -3,6 +3,7 @@ use byteorder::{LittleEndian, BigEndian, ReadBytesExt, ByteOrder, WriteBytesExt}
 
 use crate::names::{BusName, InterfaceName, ErrorName, MemberName};
 use crate::dbus_writer::{DbusWriter, DbusWrite};
+use crate::type_system::{ObjectPath, Signature, UnixFd, Serial};
 use std::io;
 
 /// The maximum length of a message, including header, header alignment padding,
@@ -67,6 +68,21 @@ enum MessageType {
     Signal = 4,
 }
 
+/// Major protocol version of the sending application.
+/// If the major protocol version of the receiving application does not match,
+/// the applications will not be able to communicate and the D-Bus connection must be disconnected.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MajorProtocolVersion(pub u8);
+
+impl DbusWrite for MajorProtocolVersion {
+    fn write<T1, T2>(&self, writer: &mut DbusWriter<T1>) -> Result<(), io::Error>
+        where T1: io::Write,
+              T2: ByteOrder
+    {
+        writer.write_u8(self.0)
+    }
+}
+
 bitflags! {
     struct HeaderFlags: u8 {
         /// This message does not expect method return replies or error replies,
@@ -81,27 +97,6 @@ bitflags! {
         const ALLOW_INTERACTIVE_AUTHORIZATION = 0x4;
     }
 }
-
-/// Major protocol version of the sending application.
-/// If the major protocol version of the receiving application does not match,
-/// the applications will not be able to communicate and the D-Bus connection must be disconnected.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct MajorProtocolVersion(u8);
-
-/// The serial of this message, used as a cookie by the sender to identify
-/// the reply corresponding to this request.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Serial(u32);
-
-/// Exactly the same as STRING except the content must be a valid object path (see above).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ObjectPath(pub String);
-
-/// The same as STRING except the length is a single byte
-/// (thus signatures have a maximum length of 255) and the
-/// content must be a valid signature (see above).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Signature(pub String);
 
 /// The array at the end of the header contains header fields,
 /// where each field is a 1-byte field code followed by a field value.
@@ -190,15 +185,15 @@ impl DbusWrite for HeaderField {
     {
         match self {
             HeaderField::Invalid => return Err(io::Error::new(io::ErrorKind::InvalidInput, "HeaderField::Invalid can not be marshaled!")),
-            HeaderField::Path(object_path) => unimplemented!(),
-            HeaderField::Interface(interface_name) => unimplemented!(),
-            HeaderField::Member(member_name) => unimplemented!(),
-            HeaderField::ErrorName(error_name) => unimplemented!(),
-            HeaderField::ReplySerial(serial) => unimplemented!(),
-            HeaderField::Destination(destination) => unimplemented!(),
-            HeaderField::Sender(sender) => unimplemented!(),
-            HeaderField::Signature(signature) => unimplemented!(),
-            HeaderField::UnixFds(fd) => writer.write_u32::<T2>(*fd),
+            HeaderField::Path(object_path) => object_path.write::<_, T2>(writer)?,
+            HeaderField::Interface(interface_name) => interface_name.write::<_, T2>(writer)?,
+            HeaderField::Member(member_name) => member_name.write::<_, T2>(writer)?,
+            HeaderField::ErrorName(error_name) => error_name.write::<_, T2>(writer)?,
+            HeaderField::ReplySerial(serial) => serial.write::<_, T2>(writer)?,
+            HeaderField::Destination(destination) => writer.write_string::<T2>(destination)?,
+            HeaderField::Sender(sender) => writer.write_string::<T2>(sender)?,
+            HeaderField::Signature(signature) => signature.write::<_, T2>(writer)?,
+            HeaderField::UnixFds(fd) => writer.write_u32::<T2>(*fd)?,
         };
         Ok(())
     }
@@ -246,7 +241,7 @@ impl DbusWrite for Header {
 
          for (ref code, ref field) in self.header_fields.iter().by_ref() {
               writer.write_u8(code.clone() as u8)?;
-              field.write::<T1, T2>(writer);
+              field.write::<T1, T2>(writer)?;
          }
          Ok(())
     }

@@ -1,7 +1,6 @@
 use std::io;
 use byteorder::{WriteBytesExt, ByteOrder};
-
-use crate::message::{Signature, ObjectPath};
+use crate::type_system::{ObjectPath, Signature};
 
 type Result<T> = std::result::Result<T, std::io::Error>;
 
@@ -68,22 +67,22 @@ impl<T: io::Write> DbusWriter<T> {
 
     /// A UINT32 indicating the string's length in bytes excluding its terminating nul,
     /// followed by non-nul string data of the given length, followed by a terminating nul byte.
-    pub fn write_string<T1: ByteOrder>(&mut self, s: String) -> Result<()> {
+    pub fn write_string<T1: ByteOrder>(&mut self, s: &str) -> Result<()> {
         self.writer.write_u32::<T1>(s.len() as u32)?;
-        self.writer.write(s.as_bytes())?;
-        self.writer.write_u8('\n' as u8)?;
+        self.writer.write_all(s.as_bytes())?;
+        self.writer.write_u8(b'\n')?;
         Ok(())
     }
 
     /// Exactly the same as STRING except the content must be a valid object path (see above).
     pub fn write_object_path<T1: ByteOrder>(&mut self, object_path: ObjectPath) -> Result<()> {
-        self.write_string::<T1>(object_path.0)
+        self.write_string::<T1>(&object_path.0)
     }
 
     /// The same as STRING except the length is a single byte (thus signatures
     /// have a maximum length of 255) and the content must be a valid signature (see above).
     pub fn write_signature<T1: ByteOrder>(&mut self, signature: Signature) -> Result<()> {
-        self.write_string::<T1>(signature.0)
+        self.write_string::<T1>(&signature.0)
     }
 
     /// A UINT32 giving the length of the array data in bytes, followed by alignment
